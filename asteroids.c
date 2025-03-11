@@ -1,0 +1,612 @@
+#include <raylib.h>
+#include <raymath.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+#include <math.h>
+
+#define SPEED 5.0f
+#define NUM_ASTEROIDS 20
+#define SCREEN_HEIGHT 495
+#define SCREEN_WIDTH 800
+#define BULLET_WIDTH 5
+#define BULLET_HEIGHT 5
+#define SPACE_SHIP_WIDTH 30
+#define SPACE_SHIP_HEIGHT 30
+#define FRAME_COUNT 30
+
+enum Size
+{
+  SMALL,
+  LARGE,
+  MEDUIM
+};
+
+typedef struct
+{
+  Texture2D texture;
+  Vector2 pos;
+  float rotation;
+  bool isActive;
+} Spaceship;
+
+typedef struct Bullet Bullet;
+
+typedef struct Bullet
+{
+  float angle;
+  Vector2 pos;
+  Bullet *next;
+  bool isActive;
+} Bullet;
+
+typedef struct Asteroid Asteroid;
+
+typedef struct Asteroid
+{
+  int speed;
+  enum Size size;
+  bool isLeftType;
+  bool isActive;
+  Vector2 pos;
+  Asteroid *next;
+  int angle;
+} Asteroid;
+
+int GenerateRand(int min, int max)
+{
+  return min + rand() % (max - min + 1);
+}
+
+void InitSpaceship(Spaceship *ship, Texture2D spaceshipTexture)
+{
+  ship->texture = spaceshipTexture;
+  ship->pos.x = (SCREEN_WIDTH / 2) - (SPACE_SHIP_WIDTH / 2);
+  ship->pos.y = (SCREEN_HEIGHT / 2) - (SPACE_SHIP_HEIGHT / 2);
+  ship->rotation = 0.0;
+  ship->isActive = true;
+}
+
+void UpdateShipPosition(Spaceship *ship)
+{
+  if (IsKeyDown(KEY_UP) || IsKeyDown(KEY_W))
+  {
+    float tempPosX = ship->pos.x + (sin(ship->rotation * DEG2RAD) * SPEED);
+    if (tempPosX >= SPEED && tempPosX <= (SCREEN_WIDTH - SPEED))
+    {
+      ship->pos.x = tempPosX;
+    }
+
+    float tempPosY = ship->pos.y - (cos(ship->rotation * DEG2RAD) * SPEED);
+    if (tempPosY >= SPEED && tempPosY < (SCREEN_HEIGHT - SPEED))
+    {
+      ship->pos.y = tempPosY;
+    }
+
+    // TraceLog(LOG_INFO, "Angle %f", ship->rotation);
+  }
+
+  if (IsKeyDown(KEY_DOWN) || IsKeyDown(KEY_S))
+  {
+    float tempPosX = ship->pos.x - (sin(ship->rotation * DEG2RAD) * SPEED);
+    if (tempPosX >= SPEED && tempPosX <= (SCREEN_WIDTH - SPEED))
+    {
+      ship->pos.x = tempPosX;
+    }
+
+    float tempPosY = ship->pos.y + (cos(ship->rotation * DEG2RAD) * SPEED);
+    if (tempPosY >= SPEED && tempPosY < (SCREEN_HEIGHT - SPEED))
+    {
+      ship->pos.y = tempPosY;
+    }
+
+    // TraceLog(LOG_INFO, "Angle %f", ship->rotation);
+  }
+}
+
+void AddBullet(Bullet **bulletList, Spaceship *ship)
+{
+
+  Bullet *newBullet = (Bullet *)malloc(sizeof(Bullet));
+  newBullet->angle = ship->rotation;
+  newBullet->next = NULL;
+  newBullet->pos = ship->pos;
+  newBullet->isActive = true;
+
+  if (*bulletList == NULL)
+  {
+    *bulletList = newBullet;
+  }
+  else
+  {
+    Bullet *temp = *bulletList;
+
+    while (temp->next != NULL)
+    {
+      temp = temp->next;
+    }
+    temp->next = newBullet;
+  }
+}
+
+void DrawBullets(Bullet *bulletList)
+{
+  Bullet *temp = bulletList;
+
+  if (bulletList == NULL)
+    return;
+
+  while (temp != NULL)
+  {
+    if (!temp->isActive)
+    {
+      temp = temp->next;
+      continue;
+    }
+
+    float angle = temp->angle;
+    temp->pos.x += (sin(temp->angle * DEG2RAD) * (SPEED + 2));
+    temp->pos.y -= (cos(temp->angle * DEG2RAD) * (SPEED + 2));
+
+    int posX = (int)(temp->pos.x);
+    int posY = (int)(temp->pos.y);
+
+    DrawRectangle(posX, posY, BULLET_WIDTH, BULLET_HEIGHT, ORANGE);
+
+    temp = temp->next;
+  }
+}
+
+void CleanBullets(Bullet **bulletList)
+{
+  if (*bulletList == NULL)
+    return;
+
+  while (*bulletList != NULL &&
+         ((*bulletList)->pos.y < 0 || (*bulletList)->pos.y > SCREEN_HEIGHT ||
+          (*bulletList)->pos.x < 0 || (*bulletList)->pos.x > SCREEN_WIDTH ||
+          !(*bulletList)->isActive))
+  {
+    Bullet *temp = *bulletList;
+    *bulletList = (*bulletList)->next;
+    free(temp);
+  }
+
+  Bullet *prev = *bulletList;
+  if (prev == NULL)
+    return;
+
+  Bullet *cur = (*bulletList)->next;
+
+  while (cur != NULL)
+  {
+    if (cur->pos.y < 0 || cur->pos.y > SCREEN_HEIGHT ||
+        cur->pos.x < 0 || cur->pos.x > SCREEN_WIDTH ||
+        !cur->isActive)
+    {
+      Bullet *temp = cur;
+      cur = cur->next;
+      prev->next = cur;
+      free(temp);
+    }
+    else
+    {
+      prev = cur;
+      cur = cur->next;
+    }
+  }
+}
+
+void GenerateAsteroids(Asteroid **asteroidList, int iterationCount)
+{
+
+  // Generate one asteroid for every 20 frames
+  if (iterationCount % FRAME_COUNT != 0)
+    return;
+
+  // 0 asteroid from left
+  // 1 asteroid from right
+
+  int type = GenerateRand(0, 1);
+
+  Asteroid *asteroid = (Asteroid *)malloc(sizeof(Asteroid));
+  asteroid->isActive = true;
+  asteroid->pos.y = GetRandomValue(20, SCREEN_HEIGHT - 20);
+  asteroid->speed = GetRandomValue(1, 6);
+  asteroid->next = NULL;
+
+  int randSizeIndex = GetRandomValue(0, 2);
+
+  switch (randSizeIndex)
+  {
+  case 0:
+    asteroid->size = SMALL;
+    break;
+  case 2:
+    asteroid->size = LARGE;
+    break;
+  default:
+    asteroid->size = MEDUIM;
+    break;
+  }
+
+  if (type == 0)
+  {
+    asteroid->pos.x = -10;
+    asteroid->isLeftType = true;
+    asteroid->angle = GenerateRand(30, 120);
+  }
+  else
+  {
+    asteroid->pos.x = SCREEN_WIDTH + 10;
+    asteroid->isLeftType = false;
+    asteroid->angle = GenerateRand(-10, -180);
+  }
+
+  if (*asteroidList == NULL)
+  {
+    *asteroidList = asteroid;
+  }
+  else
+  {
+    Asteroid *temp = *asteroidList;
+
+    while (temp->next != NULL)
+    {
+      temp = temp->next;
+    }
+
+    temp->next = asteroid;
+  }
+}
+
+void DrawAsteroids(Asteroid *asteroidList, Texture2D smallTexture, Texture2D mediumTexture, Texture2D largeTexture)
+{
+  if (asteroidList == NULL)
+    return;
+
+  Asteroid *temp = asteroidList;
+
+  while (temp != NULL)
+  {
+    if (!temp->isActive)
+    {
+      temp = temp->next;
+      continue;
+    }
+
+    if (temp->isLeftType)
+    {
+      temp->pos.x += (sin(temp->angle * DEG2RAD) * (temp->speed));
+    }
+    else
+    {
+      temp->pos.x -= (sin(temp->angle * DEG2RAD) * (temp->speed));
+    }
+
+    temp->pos.y += (cos(temp->angle * DEG2RAD) * (temp->speed));
+
+    int posX = (int)temp->pos.x;
+    int posY = (int)temp->pos.y;
+
+    if (temp->size == SMALL)
+    {
+      DrawTexture(smallTexture, posX, posY, WHITE);
+    }
+    else if (temp->size == MEDUIM)
+    {
+      DrawTexture(mediumTexture, posX, posY, WHITE);
+    }
+    else if (temp->size == LARGE)
+    {
+      DrawTexture(largeTexture, posX, posY, WHITE);
+    }
+
+    temp = temp->next;
+  }
+}
+
+void CleanAsteroids(Asteroid **asteroidList)
+{
+  if (*asteroidList == NULL)
+    return;
+
+  // remove invalid head asteroids
+  while ((*asteroidList != NULL) && (((*asteroidList)->pos.y < -10) || ((*asteroidList)->pos.y > SCREEN_HEIGHT + 10)))
+  {
+    Asteroid *temp = (*asteroidList);
+    (*asteroidList) = (*asteroidList)->next;
+
+    // TraceLog(LOG_INFO, "Freeing the asteroid %p \n", temp);
+    free(temp);
+  }
+
+  if (*asteroidList == NULL)
+    return;
+
+  Asteroid *prev = (*asteroidList);
+  Asteroid *cur = (*asteroidList)->next;
+
+  while (cur != NULL)
+  {
+    if ((cur->pos.y < -10) || (cur->pos.y > SCREEN_HEIGHT + 10))
+    {
+      Asteroid *temp = cur;
+      cur = cur->next;
+      prev->next = cur;
+
+      // TraceLog(LOG_INFO, "Freeing the asteroid %p \n", temp);
+      free(temp);
+    }
+    else
+    {
+      prev = cur;
+      cur = cur->next;
+    }
+  }
+}
+
+void CheckBulletAsteroidCollision(Asteroid *asteroidList, Bullet *bulletList, int *points)
+{
+  if (bulletList == NULL || asteroidList == NULL)
+    return;
+
+  Bullet *tempBullet = bulletList;
+
+  while (tempBullet != NULL)
+  {
+    // TraceLog(LOG_INFO,"Outer temp bullet");
+    if (!tempBullet->isActive)
+    {
+      tempBullet = tempBullet->next;
+      continue;
+    }
+    // TraceLog(LOG_INFO,"Temp bullet %p",tempBullet);
+
+    Rectangle bulletRect = {tempBullet->pos.x, tempBullet->pos.y, BULLET_WIDTH, BULLET_HEIGHT};
+
+    Asteroid *tempAsteroid = asteroidList;
+    while (tempAsteroid != NULL)
+    {
+      // TraceLog(LOG_INFO,"Inner");
+      if (!tempAsteroid->isActive)
+      {
+        tempAsteroid = tempAsteroid->next;
+        continue;
+      }
+
+      // TraceLog(LOG_INFO,"Temp asteroid %p",tempAsteroid);
+
+      Rectangle asteroidRect;
+
+      switch (tempAsteroid->size)
+      {
+      case SMALL:
+        asteroidRect = (Rectangle){tempAsteroid->pos.x, tempAsteroid->pos.y, 20, 20};
+        break;
+      case MEDUIM:
+        asteroidRect = (Rectangle){tempAsteroid->pos.x, tempAsteroid->pos.y, 30, 30};
+        break;
+      case LARGE:
+        asteroidRect = (Rectangle){tempAsteroid->pos.x, tempAsteroid->pos.y, 50, 50};
+        break;
+      }
+
+      if (CheckCollisionRecs(bulletRect, asteroidRect))
+      {
+        tempBullet->isActive = false;
+        if (tempAsteroid->size == SMALL)
+        {
+          tempAsteroid->isActive = false;
+          *points += 1;
+        }
+        else if (tempAsteroid->size == MEDUIM)
+        {
+          tempAsteroid->size = SMALL;
+          *points += 1;
+        }
+        else
+        {
+          tempAsteroid->size = MEDUIM;
+          *points += 1;
+        }
+
+        break;
+      }
+
+      tempAsteroid = tempAsteroid->next;
+    }
+
+    tempBullet = tempBullet->next;
+  }
+}
+
+void CheckAsteroidShipCollision(Asteroid *asteroidList, Spaceship *ship, int *lives)
+{
+  if (asteroidList == NULL || !ship->isActive)
+    return;
+
+  Rectangle shipRect = {ship->pos.x, ship->pos.y, SPACE_SHIP_WIDTH, SPACE_SHIP_HEIGHT};
+
+  Asteroid *temp = asteroidList;
+  while (temp != NULL)
+  {
+    if (!temp->isActive)
+    {
+      temp = temp->next;
+      continue;
+    }
+
+    Rectangle asteroidRect;
+    switch (temp->size)
+    {
+    case SMALL:
+      asteroidRect = (Rectangle){temp->pos.x, temp->pos.y, 20, 20};
+      break;
+    case MEDUIM:
+      asteroidRect = (Rectangle){temp->pos.x, temp->pos.y, 30, 30};
+      break;
+    case LARGE:
+      asteroidRect = (Rectangle){temp->pos.x, temp->pos.y, 50, 50};
+      break;
+    }
+
+    if (CheckCollisionRecs(shipRect, asteroidRect))
+    {
+      temp->isActive = false;
+      *lives -= 1;
+
+      if (*lives <= 0)
+      {
+        ship->isActive = false;
+      }
+      break;
+    }
+    temp = temp->next;
+  }
+}
+
+int main(void)
+{
+  srand(time(NULL));
+
+  const float screenWidth = SCREEN_WIDTH;
+  const float screenHeight = SCREEN_HEIGHT;
+
+  // Initialize the window
+  InitWindow(screenWidth, screenHeight, "Asteroids");
+  InitAudioDevice();
+
+  // Load images
+  Image background = LoadImage("assets/background.jpg");
+  Image spaceshipImage = LoadImage("assets/spaceship_blue.png");
+  Image smallAsteroid = LoadImage("assets/asteroid_2.png");
+  Image mediumAsteroid = LoadImage("assets/asteroid_2.png");
+  Image largeAsteroid = LoadImage("assets/asteroid_2.png");
+
+  ImageResize(&spaceshipImage, SPACE_SHIP_WIDTH, SPACE_SHIP_HEIGHT);
+  ImageResize(&smallAsteroid, 20, 20);
+  ImageResize(&mediumAsteroid, 30, 30);
+  ImageResize(&largeAsteroid, 50, 50);
+
+  // Load sounds
+  Sound laser = LoadSound("assets/laser.mp3");
+
+  // Load textures from images
+  Texture2D spaceshipTexture = LoadTextureFromImage(spaceshipImage);
+  Texture2D backgroundTexture = LoadTextureFromImage(background);
+  Texture2D smallAsteroidTexture = LoadTextureFromImage(smallAsteroid);
+  Texture2D mediumAsteroidTexture = LoadTextureFromImage(mediumAsteroid);
+  Texture2D largeAsteroidTexture = LoadTextureFromImage(largeAsteroid);
+
+  // Initialize a spaceship
+  Spaceship ship;
+  InitSpaceship(&ship, spaceshipTexture);
+
+  // Initialize the bullet list
+  Bullet *bulletList = NULL;
+
+  // Initialize the asteroid list
+  Asteroid *asteroidList = NULL;
+
+  // IterationCount
+  int iterationCount = 0;
+  int points = 0;
+  int lives = 3;
+
+  // set target fps
+  SetTargetFPS(60);
+
+  while (!WindowShouldClose())
+  {
+    BeginDrawing();
+    iterationCount++;
+
+    ClearBackground(BLACK);
+    DrawTexture(backgroundTexture, 0, 0, WHITE);
+    GenerateAsteroids(&asteroidList, iterationCount);
+
+    if (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A))
+    {
+      ship.rotation += 5;
+
+      if (ship.rotation > 360)
+      {
+        ship.rotation = fmodf(ship.rotation, 360.0);
+      }
+
+      UpdateShipPosition(&ship);
+    }
+
+    if (IsKeyDown(KEY_RIGHT) || IsKeyDown(KEY_D))
+    {
+      ship.rotation -= 5;
+      if (ship.rotation < 360)
+      {
+        ship.rotation = fmodf(ship.rotation, 360.0);
+      }
+
+      UpdateShipPosition(&ship);
+    }
+
+    UpdateShipPosition(&ship);
+
+    if ((IsKeyPressed(KEY_SPACE) || IsKeyPressedRepeat(KEY_SPACE)) && ship.isActive)
+    {
+      AddBullet(&bulletList, &ship);
+      // PlaySound(laser);
+    }
+
+    DrawBullets(bulletList);
+    DrawAsteroids(asteroidList, smallAsteroidTexture, mediumAsteroidTexture, largeAsteroidTexture);
+
+    CheckBulletAsteroidCollision(asteroidList, bulletList, &points);
+
+    DrawText(TextFormat("Score : %d", points), 20, screenHeight - 50, 30, YELLOW);
+
+    for (int i = 0; i < lives; i++)
+    {
+      DrawTexture(ship.texture, (20 + (i * 10)), screenHeight - 80, WHITE);
+    }
+
+    if (ship.isActive)
+    {
+      CheckAsteroidShipCollision(asteroidList, &ship, &lives);
+      DrawTexturePro(ship.texture, (Rectangle){0, 0, ship.texture.width, ship.texture.height}, (Rectangle){ship.pos.x, ship.pos.y, 30, 30}, (Vector2){ship.texture.width / 2, ship.texture.height / 2}, ship.rotation, WHITE);
+    }
+    else
+    {
+      DrawText(TextFormat("Game Over"), screenWidth / 2 - 100, screenHeight / 2 - 50, 40, YELLOW);
+      DrawText(TextFormat("Press R to restart"), screenWidth / 2 - 100, screenHeight / 2, 20, YELLOW);
+
+      if (IsKeyPressed(KEY_R))
+      {
+        // Reset the game
+        iterationCount = 0;
+        lives = 3;
+        points = 0;
+        ship.isActive = true;
+      }
+    }
+
+    CleanBullets(&bulletList);
+    CleanAsteroids(&asteroidList);
+    EndDrawing();
+  }
+
+  // Unload allocated resources
+  UnloadImage(background);
+  UnloadImage(spaceshipImage);
+  UnloadImage(smallAsteroid);
+  UnloadImage(mediumAsteroid);
+  UnloadImage(largeAsteroid);
+  UnloadSound(laser);
+  UnloadTexture(spaceshipTexture);
+  UnloadTexture(smallAsteroidTexture);
+  UnloadTexture(largeAsteroidTexture);
+  UnloadTexture(mediumAsteroidTexture);
+  CloseAudioDevice();
+  CloseWindow();
+
+  return 0;
+}

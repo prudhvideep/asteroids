@@ -1,5 +1,5 @@
 run:
-	@gcc spaceinvaders.c -lraylib -o spaceinvaders
-	@./spaceinvaders
+	@gcc asteroids.c -lraylib -o asteroids -lm
+	@./asteroids
 	@echo "cleaning up the binary"
-	@rm -rf spaceinvaders
+	@rm -rf asteroids
