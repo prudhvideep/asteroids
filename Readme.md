@@ -25,5 +25,10 @@ Control the spaceship with the arrow keys. Press the space bar to shoot and r to
    make run
 ```
 
+- Port to wasm
+
+   - Install emsdk toolchain and compile raylib for web.
+   - Run `make wasm`    
+
 
 

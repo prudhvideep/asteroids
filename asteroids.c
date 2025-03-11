@@ -346,7 +346,7 @@ void CleanAsteroids(Asteroid **asteroidList)
   }
 }
 
-void CheckBulletAsteroidCollision(Asteroid *asteroidList, Bullet *bulletList, int *points)
+void CheckBulletAsteroidCollision(Asteroid *asteroidList, Bullet *bulletList, int *points, Sound rockSmash)
 {
   if (bulletList == NULL || asteroidList == NULL)
     return;
@@ -410,6 +410,7 @@ void CheckBulletAsteroidCollision(Asteroid *asteroidList, Bullet *bulletList, in
           tempAsteroid->size = MEDUIM;
           *points += 1;
         }
+        PlaySound(rockSmash);
 
         break;
       }
@@ -421,7 +422,7 @@ void CheckBulletAsteroidCollision(Asteroid *asteroidList, Bullet *bulletList, in
   }
 }
 
-void CheckAsteroidShipCollision(Asteroid *asteroidList, Spaceship *ship, int *lives)
+void CheckAsteroidShipCollision(Asteroid *asteroidList, Spaceship *ship, int *lives, Sound explosion)
 {
   if (asteroidList == NULL || !ship->isActive)
     return;
@@ -459,6 +460,7 @@ void CheckAsteroidShipCollision(Asteroid *asteroidList, Spaceship *ship, int *li
       if (*lives <= 0)
       {
         ship->isActive = false;
+        PlaySound(explosion);
       }
       break;
     }
@@ -491,6 +493,8 @@ int main(void)
 
   // Load sounds
   Sound laser = LoadSound("assets/laser.mp3");
+  Sound explosion = LoadSound("assets/spaceship_explosion.mp3");
+  Sound rockSmash = LoadSound("assets/rock_destroyed.mp3");
 
   // Load textures from images
   Texture2D spaceshipTexture = LoadTextureFromImage(spaceshipImage);
@@ -554,13 +558,13 @@ int main(void)
     if ((IsKeyPressed(KEY_SPACE) || IsKeyPressedRepeat(KEY_SPACE)) && ship.isActive)
     {
       AddBullet(&bulletList, &ship);
-      // PlaySound(laser);
+      PlaySound(laser);
     }
 
     DrawBullets(bulletList);
     DrawAsteroids(asteroidList, smallAsteroidTexture, mediumAsteroidTexture, largeAsteroidTexture);
 
-    CheckBulletAsteroidCollision(asteroidList, bulletList, &points);
+    CheckBulletAsteroidCollision(asteroidList, bulletList, &points, rockSmash);
 
     DrawText(TextFormat("Score : %d", points), 20, screenHeight - 50, 30, YELLOW);
 
@@ -571,7 +575,7 @@ int main(void)
 
     if (ship.isActive)
     {
-      CheckAsteroidShipCollision(asteroidList, &ship, &lives);
+      CheckAsteroidShipCollision(asteroidList, &ship, &lives, explosion);
       DrawTexturePro(ship.texture, (Rectangle){0, 0, ship.texture.width, ship.texture.height}, (Rectangle){ship.pos.x, ship.pos.y, 30, 30}, (Vector2){ship.texture.width / 2, ship.texture.height / 2}, ship.rotation, WHITE);
     }
     else
@@ -601,6 +605,7 @@ int main(void)
   UnloadImage(mediumAsteroid);
   UnloadImage(largeAsteroid);
   UnloadSound(laser);
+  UnloadSound(rockSmash);
   UnloadTexture(spaceshipTexture);
   UnloadTexture(smallAsteroidTexture);
   UnloadTexture(largeAsteroidTexture);
