@@ -22,7 +22,7 @@ enum Size
   MEDUIM
 };
 
-typedef struct
+typedef struct Spaceship
 {
   Texture2D texture;
   Vector2 pos;
@@ -30,17 +30,14 @@ typedef struct
   bool isActive;
 } Spaceship;
 
-typedef struct Bullet Bullet;
 
 typedef struct Bullet
 {
   float angle;
   Vector2 pos;
-  Bullet *next;
+  struct Bullet *next;
   bool isActive;
 } Bullet;
-
-typedef struct Asteroid Asteroid;
 
 typedef struct Asteroid
 {
@@ -49,7 +46,7 @@ typedef struct Asteroid
   bool isLeftType;
   bool isActive;
   Vector2 pos;
-  Asteroid *next;
+  struct Asteroid *next;
   int angle;
 } Asteroid;
 
@@ -83,7 +80,7 @@ void UpdateShipPosition(Spaceship *ship)
       ship->pos.y = tempPosY;
     }
 
-    // TraceLog(LOG_INFO, "Angle %f", ship->rotation);
+    // TraceLog(LOG_INFO, "Angle %f", ship->rotation)
   }
 
   if (IsKeyDown(KEY_DOWN) || IsKeyDown(KEY_S))
