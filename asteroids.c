@@ -14,6 +14,7 @@
 #define SPACE_SHIP_WIDTH 30
 #define SPACE_SHIP_HEIGHT 30
 #define FRAME_COUNT 30
+#define NEBULA_PARTICLES 1000
 
 enum Size
 {
@@ -29,7 +30,6 @@ typedef struct Spaceship
   float rotation;
   bool isActive;
 } Spaceship;
-
 
 typedef struct Bullet
 {
@@ -50,10 +50,22 @@ typedef struct Asteroid
   int angle;
 } Asteroid;
 
-int GenerateRand(int min, int max)
+typedef struct
 {
-  return min + rand() % (max - min + 1);
-}
+  Vector2 position;
+  Color color;
+  float size;
+  float speed;
+  float alpha;
+} NebulaParticle;
+
+NebulaParticle nebula[NEBULA_PARTICLES];
+
+Color nebulaColors[] = {
+     {100, 255, 100, 80},  // Green
+    {255, 255, 100, 80},  // Yellow
+    {180, 255, 140, 80}   
+};
 
 void InitSpaceship(Spaceship *ship, Texture2D spaceshipTexture)
 {
@@ -62,6 +74,43 @@ void InitSpaceship(Spaceship *ship, Texture2D spaceshipTexture)
   ship->pos.y = (SCREEN_HEIGHT / 2) - (SPACE_SHIP_HEIGHT / 2);
   ship->rotation = 0.0;
   ship->isActive = true;
+}
+
+void InitNebula()
+{
+  for (int i = 0; i < NEBULA_PARTICLES; i++)
+  {
+    nebula[i].position.x = GetRandomValue(0, SCREEN_WIDTH);
+    nebula[i].position.y = GetRandomValue(0, SCREEN_HEIGHT);
+    nebula[i].color = nebulaColors[GetRandomValue(0, 3)];
+    nebula[i].size = GetRandomValue(10, 30);
+    nebula[i].speed = GetRandomValue(5, 15) / 100.0f;
+    nebula[i].alpha = GetRandomValue(20, 60);
+  }
+}
+
+void UpdateAndDrawNebula(Spaceship *ship)
+{
+  for (int i = 0; i < NEBULA_PARTICLES; i++)
+  {
+    nebula[i].position.x -= nebula[i].speed * sin(ship->rotation * DEG2RAD * SPEED);
+    nebula[i].position.y += nebula[i].speed * cos(ship->rotation * DEG2RAD * SPEED);
+
+    // Wrap around screen
+    if (nebula[i].position.x < -nebula[i].size)
+      nebula[i].position.x = SCREEN_WIDTH + nebula[i].size;
+    if (nebula[i].position.x > SCREEN_WIDTH + nebula[i].size)
+      nebula[i].position.x = -nebula[i].size;
+    if (nebula[i].position.y < -nebula[i].size)
+      nebula[i].position.y = SCREEN_HEIGHT + nebula[i].size;
+    if (nebula[i].position.y > SCREEN_HEIGHT + nebula[i].size)
+      nebula[i].position.y = -nebula[i].size;
+
+    // Draw nebula particle as a translucent circle
+    Color currentColor = nebula[i].color;
+    currentColor.a = nebula[i].alpha;
+    DrawCircle(nebula[i].position.x,nebula[i].position.y,1.0,nebula[i].color);
+  }
 }
 
 void UpdateShipPosition(Spaceship *ship)
@@ -204,7 +253,7 @@ void GenerateAsteroids(Asteroid **asteroidList, int iterationCount)
   // 0 asteroid from left
   // 1 asteroid from right
 
-  int type = GenerateRand(0, 1);
+  int type = GetRandomValue(0, 1);
 
   Asteroid *asteroid = (Asteroid *)malloc(sizeof(Asteroid));
   asteroid->isActive = true;
@@ -231,13 +280,13 @@ void GenerateAsteroids(Asteroid **asteroidList, int iterationCount)
   {
     asteroid->pos.x = -10;
     asteroid->isLeftType = true;
-    asteroid->angle = GenerateRand(30, 120);
+    asteroid->angle = GetRandomValue(30, 120);
   }
   else
   {
     asteroid->pos.x = SCREEN_WIDTH + 10;
     asteroid->isLeftType = false;
-    asteroid->angle = GenerateRand(-10, -180);
+    asteroid->angle = GetRandomValue(-10, -180);
   }
 
   if (*asteroidList == NULL)
@@ -506,6 +555,7 @@ int main(void)
 
   // Initialize the bullet list
   Bullet *bulletList = NULL;
+  InitNebula();
 
   // Initialize the asteroid list
   Asteroid *asteroidList = NULL;
@@ -524,7 +574,7 @@ int main(void)
     iterationCount++;
 
     ClearBackground(BLACK);
-    DrawTexture(backgroundTexture, 0, 0, WHITE);
+    UpdateAndDrawNebula(&ship);
     GenerateAsteroids(&asteroidList, iterationCount);
 
     if (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A))
