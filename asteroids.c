@@ -62,9 +62,8 @@ typedef struct
 NebulaParticle nebula[NEBULA_PARTICLES];
 
 Color nebulaColors[] = {
-     {100, 255, 100, 80},  // Green
-    {255, 255, 100, 80},  // Yellow
-    {180, 255, 140, 80}   
+     {0, 255, 0, 255},  // Green
+    {255, 255, 0, 255},  // Yellow
 };
 
 void InitSpaceship(Spaceship *ship, Texture2D spaceshipTexture)
@@ -84,7 +83,7 @@ void InitNebula()
     nebula[i].position.y = GetRandomValue(0, SCREEN_HEIGHT);
     nebula[i].color = nebulaColors[GetRandomValue(0, 3)];
     nebula[i].size = GetRandomValue(10, 30);
-    nebula[i].speed = GetRandomValue(5, 15) / 100.0f;
+    nebula[i].speed = GetRandomValue(1, 2)/10.0;
     nebula[i].alpha = GetRandomValue(20, 60);
   }
 }
@@ -109,7 +108,7 @@ void UpdateAndDrawNebula(Spaceship *ship)
     // Draw nebula particle as a translucent circle
     Color currentColor = nebula[i].color;
     currentColor.a = nebula[i].alpha;
-    DrawCircle(nebula[i].position.x,nebula[i].position.y,1.0,nebula[i].color);
+    DrawCircle(nebula[i].position.x,nebula[i].position.y,1,nebula[i].color);
   }
 }
 
