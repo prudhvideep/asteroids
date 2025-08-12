@@ -1,9 +1,8 @@
-#include <raylib.h>
-#include <raymath.h>
-#include <stdio.h>
+#include "raylib.h"
 #include <stdlib.h>
 #include <time.h>
 #include <math.h>
+#include <stdint.h>
 
 #define SPEED 5.0f
 #define NUM_ASTEROIDS 20
@@ -23,43 +22,41 @@ enum Size
   MEDUIM
 };
 
-typedef struct Spaceship
+typedef struct
 {
+  bool isActive;
+  float rotation;
   Texture2D texture;
   Vector2 pos;
-  float rotation;
-  bool isActive;
 } Spaceship;
 
 typedef struct Bullet
 {
+  bool isActive;
   float angle;
   Vector2 pos;
   struct Bullet *next;
-  bool isActive;
 } Bullet;
 
 typedef struct Asteroid
 {
-  int speed;
-  enum Size size;
-  bool isLeftType;
+  uint8_t speed;
+  uint8_t angle;
   bool isActive;
-  Vector2 pos;
+  bool isLeftType;
+  enum Size size;
   struct Asteroid *next;
-  int angle;
+  Vector2 pos;
 } Asteroid;
 
 typedef struct
 {
   Vector2 position;
-  Color color;
   float size;
   float speed;
   float alpha;
+  Color color;
 } NebulaParticle;
-
-NebulaParticle nebula[NEBULA_PARTICLES];
 
 Color nebulaColors[] = {
      {0, 255, 0, 255},  // Green
@@ -69,13 +66,13 @@ Color nebulaColors[] = {
 void InitSpaceship(Spaceship *ship, Texture2D spaceshipTexture)
 {
   ship->texture = spaceshipTexture;
-  ship->pos.x = (SCREEN_WIDTH / 2) - (SPACE_SHIP_WIDTH / 2);
-  ship->pos.y = (SCREEN_HEIGHT / 2) - (SPACE_SHIP_HEIGHT / 2);
+  ship->pos.x = ((float) SCREEN_WIDTH / 2.0) - ((float) SPACE_SHIP_WIDTH / 2.0);
+  ship->pos.y = ((float) SCREEN_HEIGHT / 2.0) - ((float) SPACE_SHIP_HEIGHT / 2.0);
   ship->rotation = 0.0;
   ship->isActive = true;
 }
 
-void InitNebula()
+void InitNebula(NebulaParticle *nebula)
 {
   for (int i = 0; i < NEBULA_PARTICLES; i++)
   {
@@ -88,7 +85,7 @@ void InitNebula()
   }
 }
 
-void UpdateAndDrawNebula(Spaceship *ship)
+void UpdateAndDrawNebula(Spaceship *ship, NebulaParticle *nebula)
 {
   for (int i = 0; i < NEBULA_PARTICLES; i++)
   {
@@ -467,7 +464,7 @@ void CheckBulletAsteroidCollision(Asteroid *asteroidList, Bullet *bulletList, in
   }
 }
 
-void CheckAsteroidShipCollision(Asteroid *asteroidList, Spaceship *ship, int *lives, Sound explosion)
+void CheckAsteroidShipCollision(Asteroid *asteroidList, Spaceship *ship, uint8_t *lives, Sound explosion)
 {
   if (asteroidList == NULL || !ship->isActive)
     return;
@@ -552,9 +549,11 @@ int main(void)
   Spaceship ship;
   InitSpaceship(&ship, spaceshipTexture);
 
+  NebulaParticle nebula[NEBULA_PARTICLES];
+  InitNebula(nebula);
+
   // Initialize the bullet list
   Bullet *bulletList = NULL;
-  InitNebula();
 
   // Initialize the asteroid list
   Asteroid *asteroidList = NULL;
@@ -562,7 +561,7 @@ int main(void)
   // IterationCount
   int iterationCount = 0;
   int points = 0;
-  int lives = 3;
+  uint8_t lives = 3;
 
   // set target fps
   SetTargetFPS(60);
@@ -573,7 +572,7 @@ int main(void)
     iterationCount++;
 
     ClearBackground(BLACK);
-    UpdateAndDrawNebula(&ship);
+    UpdateAndDrawNebula(&ship,nebula);
     GenerateAsteroids(&asteroidList, iterationCount);
 
     if (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A))
@@ -622,7 +621,7 @@ int main(void)
     if (ship.isActive)
     {
       CheckAsteroidShipCollision(asteroidList, &ship, &lives, explosion);
-      DrawTexturePro(ship.texture, (Rectangle){0, 0, ship.texture.width, ship.texture.height}, (Rectangle){ship.pos.x, ship.pos.y, 30, 30}, (Vector2){ship.texture.width / 2, ship.texture.height / 2}, ship.rotation, WHITE);
+      DrawTexturePro(ship.texture, (Rectangle){0, 0, ship.texture.width, ship.texture.height}, (Rectangle){ship.pos.x, ship.pos.y, 30, 30}, (Vector2){ship.texture.width / 2.0, ship.texture.height / 2.0}, ship.rotation, WHITE);
     }
     else
     {

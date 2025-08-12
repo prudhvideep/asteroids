@@ -1,9 +1,9 @@
-RAYLIB_PATH ?= ~/raylib/src
+RAYLIB_PATH ?= ~/C/asteroids/raylib/src
 LIBRAYLIB := $(RAYLIB_PATH)/libraylib.a
 SHELL_FILE := $(RAYLIB_PATH)/shell.html
 
 run:
-	@gcc asteroids.c -lraylib -o asteroids -lm
+	@gcc asteroids.c $(LIBRAYLIB) -o asteroids -lm
 	@./asteroids
 	@echo "cleaning up the binary"
 	@rm -rf asteroids
