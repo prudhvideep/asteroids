@@ -27,8 +27,8 @@ Control the spaceship with the arrow keys. Press the space bar to shoot and r to
 
 - Port to wasm
 
-   - An older version of the game got compiled to wasm. 
-   - Working on compiling the latest version with arena style memory management to wasm   
+   - Working on compiling the latest version with arena style memory management to wasm
+   - The demo includes an older version.   
 
 
 
