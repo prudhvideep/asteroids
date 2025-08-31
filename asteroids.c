@@ -1,4 +1,6 @@
-#include "raylib.h"
+#include "include/raylib/raylib.h"
+#include "include/alloc/alloc.h"
+
 #include <stdlib.h>
 #include <time.h>
 #include <math.h>
@@ -6,14 +8,14 @@
 
 #define SPEED 5.0f
 #define NUM_ASTEROIDS 20
-#define SCREEN_HEIGHT 495
-#define SCREEN_WIDTH 800
+#define SCREEN_HEIGHT 600
+#define SCREEN_WIDTH 1000
 #define BULLET_WIDTH 5
 #define BULLET_HEIGHT 5
 #define SPACE_SHIP_WIDTH 30
 #define SPACE_SHIP_HEIGHT 30
 #define FRAME_COUNT 30
-#define NEBULA_PARTICLES 1000
+#define NEBULA_PARTICLES 800
 
 enum Size
 {
@@ -22,23 +24,26 @@ enum Size
   MEDUIM
 };
 
-typedef struct
+typedef struct Spaceship Spaceship;
+struct Spaceship
 {
   bool isActive;
   float rotation;
   Texture2D texture;
   Vector2 pos;
-} Spaceship;
+};
 
-typedef struct Bullet
+typedef struct Bullet Bullet;
+struct Bullet
 {
   bool isActive;
   float angle;
   Vector2 pos;
-  struct Bullet *next;
-} Bullet;
+  Bullet *next;
+};
 
-typedef struct Asteroid
+typedef struct Asteroid Asteroid; 
+struct Asteroid
 {
   uint8_t speed;
   uint8_t angle;
@@ -47,16 +52,17 @@ typedef struct Asteroid
   enum Size size;
   struct Asteroid *next;
   Vector2 pos;
-} Asteroid;
+};
 
-typedef struct
+typedef struct NebulaParticle NebulaParticle;
+struct NebulaParticle
 {
   Vector2 position;
   float size;
   float speed;
   float alpha;
   Color color;
-} NebulaParticle;
+};
 
 Color nebulaColors[] = {
      {0, 255, 0, 255},  // Green
@@ -146,10 +152,10 @@ void UpdateShipPosition(Spaceship *ship)
   }
 }
 
-void AddBullet(Bullet **bulletList, Spaceship *ship)
+void AddBullet(FreeList *list, Bullet **bulletList, Spaceship *ship)
 {
 
-  Bullet *newBullet = (Bullet *)malloc(sizeof(Bullet));
+  Bullet *newBullet = (Bullet *) free_list_alloc_aligned(list, sizeof(Bullet), alignof(Bullet));
   newBullet->angle = ship->rotation;
   newBullet->next = NULL;
   newBullet->pos = ship->pos;
@@ -186,7 +192,6 @@ void DrawBullets(Bullet *bulletList)
       continue;
     }
 
-    float angle = temp->angle;
     temp->pos.x += (sin(temp->angle * DEG2RAD) * (SPEED + 2));
     temp->pos.y -= (cos(temp->angle * DEG2RAD) * (SPEED + 2));
 
@@ -199,7 +204,7 @@ void DrawBullets(Bullet *bulletList)
   }
 }
 
-void CleanBullets(Bullet **bulletList)
+void CleanBullets(FreeList *list, Bullet **bulletList)
 {
   if (*bulletList == NULL)
     return;
@@ -211,7 +216,8 @@ void CleanBullets(Bullet **bulletList)
   {
     Bullet *temp = *bulletList;
     *bulletList = (*bulletList)->next;
-    free(temp);
+    
+    free_list_dealloc(list, temp);
   }
 
   Bullet *prev = *bulletList;
@@ -229,7 +235,8 @@ void CleanBullets(Bullet **bulletList)
       Bullet *temp = cur;
       cur = cur->next;
       prev->next = cur;
-      free(temp);
+      
+      free_list_dealloc(list, temp);
     }
     else
     {
@@ -239,7 +246,7 @@ void CleanBullets(Bullet **bulletList)
   }
 }
 
-void GenerateAsteroids(Asteroid **asteroidList, int iterationCount)
+void GenerateAsteroids(FreeList *list, Asteroid **asteroidList, int iterationCount)
 {
 
   // Generate one asteroid for every 20 frames
@@ -251,7 +258,7 @@ void GenerateAsteroids(Asteroid **asteroidList, int iterationCount)
 
   int type = GetRandomValue(0, 1);
 
-  Asteroid *asteroid = (Asteroid *)malloc(sizeof(Asteroid));
+  Asteroid *asteroid = (Asteroid *) free_list_alloc_aligned(list, sizeof(Asteroid), alignof(Asteroid));
   asteroid->isActive = true;
   asteroid->pos.y = GetRandomValue(20, SCREEN_HEIGHT - 20);
   asteroid->speed = GetRandomValue(1, 6);
@@ -348,7 +355,7 @@ void DrawAsteroids(Asteroid *asteroidList, Texture2D smallTexture, Texture2D med
   }
 }
 
-void CleanAsteroids(Asteroid **asteroidList)
+void CleanAsteroids(FreeList *list, Asteroid **asteroidList)
 {
   if (*asteroidList == NULL)
     return;
@@ -360,7 +367,7 @@ void CleanAsteroids(Asteroid **asteroidList)
     (*asteroidList) = (*asteroidList)->next;
 
     // TraceLog(LOG_INFO, "Freeing the asteroid %p \n", temp);
-    free(temp);
+    free_list_dealloc(list, temp);
   }
 
   if (*asteroidList == NULL)
@@ -378,7 +385,7 @@ void CleanAsteroids(Asteroid **asteroidList)
       prev->next = cur;
 
       // TraceLog(LOG_INFO, "Freeing the asteroid %p \n", temp);
-      free(temp);
+      free_list_dealloc(list, temp);
     }
     else
     {
@@ -540,7 +547,6 @@ int main(void)
 
   // Load textures from images
   Texture2D spaceshipTexture = LoadTextureFromImage(spaceshipImage);
-  Texture2D backgroundTexture = LoadTextureFromImage(background);
   Texture2D smallAsteroidTexture = LoadTextureFromImage(smallAsteroid);
   Texture2D mediumAsteroidTexture = LoadTextureFromImage(mediumAsteroid);
   Texture2D largeAsteroidTexture = LoadTextureFromImage(largeAsteroid);
@@ -558,6 +564,10 @@ int main(void)
   // Initialize the asteroid list
   Asteroid *asteroidList = NULL;
 
+  // Initialize a free list allocator
+  FreeList free_list_allocator;
+  free_list_init(&free_list_allocator, 100 * PAGE_SIZE);
+
   // IterationCount
   int iterationCount = 0;
   int points = 0;
@@ -573,7 +583,7 @@ int main(void)
 
     ClearBackground(BLACK);
     UpdateAndDrawNebula(&ship,nebula);
-    GenerateAsteroids(&asteroidList, iterationCount);
+    GenerateAsteroids(&free_list_allocator, &asteroidList, iterationCount);
 
     if (IsKeyDown(KEY_LEFT) || IsKeyDown(KEY_A))
     {
@@ -602,7 +612,7 @@ int main(void)
 
     if ((IsKeyPressed(KEY_SPACE) || IsKeyPressedRepeat(KEY_SPACE)) && ship.isActive)
     {
-      AddBullet(&bulletList, &ship);
+      AddBullet(&free_list_allocator, &bulletList, &ship);
       PlaySound(laser);
     }
 
@@ -638,8 +648,8 @@ int main(void)
       }
     }
 
-    CleanBullets(&bulletList);
-    CleanAsteroids(&asteroidList);
+    CleanBullets(&free_list_allocator, &bulletList);
+    CleanAsteroids(&free_list_allocator, &asteroidList);
     EndDrawing();
   }
 
@@ -657,6 +667,8 @@ int main(void)
   UnloadTexture(mediumAsteroidTexture);
   CloseAudioDevice();
   CloseWindow();
+  free_list_destroy(&free_list_allocator);
 
   return 0;
 }
+

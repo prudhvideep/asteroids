@@ -1,13 +1,13 @@
-# Spaceinvaders
+# Asteroids
 
-A simple asteroids game written using C and raylib. This project is a good starting point to learn how game loop work.
+A simple asteroids game written using C and raylib. 
 
 ## How to play
 
 Control the spaceship with the arrow keys. Press the space bar to shoot and r to restart.
 ## Demo
 
-![Space Invaders Gameplay](demo.gif)
+![Space Invaders Gameplay](./assets/demo.gif)
 
 ## Steps to run
 
@@ -27,8 +27,8 @@ Control the spaceship with the arrow keys. Press the space bar to shoot and r to
 
 - Port to wasm
 
-   - Install emsdk toolchain and compile raylib for web.
-   - Run `make wasm`    
+   - An older version of the game got compiled to wasm. 
+   - Working on compiling the latest version with arena style memory management to wasm   
 
 
 

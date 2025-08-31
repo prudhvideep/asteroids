@@ -1,25 +1,15 @@
-RAYLIB_PATH ?= ~/C/asteroids/raylib/src
-LIBRAYLIB := $(RAYLIB_PATH)/libraylib.a
-SHELL_FILE := $(RAYLIB_PATH)/shell.html
+CC = clang-19
+CFLAGS = -std=c11 -Wall -Wextra -pedantic
+LIBRAYLIB := ./lib/libraylib.a
+ALLOCLIB := ./lib/alloc.a
 
-run:
-	@gcc asteroids.c $(LIBRAYLIB) -o asteroids -lm
-	@./asteroids
-	@echo "cleaning up the binary"
+.PHONY = run build-linux build-windows clean
+
+run: build-linux 
+	./asteroids
+
+build-linux: 
+	$(CC) $(CFLAGS) asteroids.c $(LIBRAYLIB) $(ALLOCLIB) -o asteroids -lm
+
+clean:
 	@rm -rf asteroids
-
-wasm:
-	emcc -o asteroids.html asteroids.c \
-		-Os -Wall \
-		~/raylib/src/libraylib.a \
-		-I. -I ~/raylib/src/ \
-		-L. -L ~/raylib/src/ \
-		-s USE_GLFW=3 \
-		-s ASYNCIFY \
-		--shell-file ~/raylib/src/shell.html \
-		--preload-file assets \
-		-s TOTAL_STACK=64MB \
-		-s INITIAL_MEMORY=128MB \
-		-s ASSERTIONS=1 \
-		--profiling \
-		-DPLATFORM_WEB
